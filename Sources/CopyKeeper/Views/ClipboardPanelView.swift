@@ -12,7 +12,7 @@ struct ClipboardPanelView: View {
         ZStack {
             background
                 .contentShape(Rectangle())
-                .onTapGesture { store.focusedItemID = nil }
+                .onTapGesture { dismissTransients() }
 
             VStack(spacing: 0) {
                 TopBarView(searchText: $store.searchText,
@@ -25,7 +25,7 @@ struct ClipboardPanelView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .contentShape(Rectangle())
-            .onTapGesture { store.focusedItemID = nil }
+            .onTapGesture { dismissTransients() }
 
             if let id = store.editingItemID,
                let item = store.items.first(where: { $0.id == id }) {
@@ -73,6 +73,15 @@ struct ClipboardPanelView: View {
                 )
                 .blendMode(.plusLighter)
         )
+    }
+
+    /// Tapping empty space clears card focus and collapses the search field.
+    private func dismissTransients() {
+        store.focusedItemID = nil
+        if searching {
+            store.searchText = ""
+            withAnimation(.easeOut(duration: 0.15)) { searching = false }
+        }
     }
 
     // MARK: - Background
