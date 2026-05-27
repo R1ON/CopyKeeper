@@ -57,11 +57,18 @@ final class AppSettings: ObservableObject {
     private enum Keys {
         static let deleteWithoutConfirmation = "com.copykeeper.deleteWithoutConfirmation"
         static let language = "com.copykeeper.language"
+        static let moveToFrontOnCopy = "com.copykeeper.moveToFrontOnCopy"
     }
 
     @Published var deleteWithoutConfirmation: Bool {
         didSet {
             UserDefaults.standard.set(deleteWithoutConfirmation, forKey: Keys.deleteWithoutConfirmation)
+        }
+    }
+
+    @Published var moveToFrontOnCopy: Bool {
+        didSet {
+            UserDefaults.standard.set(moveToFrontOnCopy, forKey: Keys.moveToFrontOnCopy)
         }
     }
 
@@ -83,6 +90,7 @@ final class AppSettings: ObservableObject {
 
     private init() {
         deleteWithoutConfirmation = UserDefaults.standard.bool(forKey: Keys.deleteWithoutConfirmation)
+        moveToFrontOnCopy = UserDefaults.standard.object(forKey: Keys.moveToFrontOnCopy) as? Bool ?? true
         let raw = UserDefaults.standard.string(forKey: Keys.language) ?? AppLanguage.auto.rawValue
         language = AppLanguage(rawValue: raw) ?? .auto
     }
@@ -184,6 +192,21 @@ struct GeneralSettingsTab: View {
                         .foregroundColor(.white)
                     Text(Loc.s("Групповые действия всегда требуют подтверждения.",
                                "Group actions always require confirmation."))
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+            }
+            .toggleStyle(.switch)
+            .tint(.orange)
+
+            Toggle(isOn: $settings.moveToFrontOnCopy) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Loc.s("Перемещать карточку в начало при копировании",
+                               "Move card to the top when copied"))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white)
+                    Text(Loc.s("Скопированная запись становится первой в списке.",
+                               "The copied item becomes the first in the list."))
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.5))
                 }

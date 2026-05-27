@@ -143,6 +143,17 @@ class ClipboardStore: ObservableObject {
             }
         }
         NSSound(named: "Frog")?.play()
+
+        if AppSettings.shared.moveToFrontOnCopy {
+            moveItemToFront(item)
+        }
+    }
+
+    private func moveItemToFront(_ item: ClipboardItem) {
+        guard let idx = items.firstIndex(where: { $0.id == item.id }), idx != 0 else { return }
+        let moved = items.remove(at: idx)
+        items.insert(moved, at: 0)
+        saveData()
     }
 
     func addItem(_ item: ClipboardItem) {
