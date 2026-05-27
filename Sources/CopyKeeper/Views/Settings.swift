@@ -91,6 +91,7 @@ final class AppSettings: ObservableObject {
 // MARK: - Settings window
 
 struct SettingsView: View {
+    @ObservedObject var store: ClipboardStore
     let onClose: () -> Void
     @ObservedObject private var settings = AppSettings.shared
     @State private var tab = 0
@@ -104,7 +105,8 @@ struct SettingsView: View {
 
                 Picker("", selection: $tab) {
                     Text(Loc.s("Основные", "General")).tag(0)
-                    Text(Loc.s("Горячие клавиши", "Hotkeys")).tag(1)
+                    Text(Loc.s("Время жизни", "Lifetime")).tag(1)
+                    Text(Loc.s("Горячие клавиши", "Hotkeys")).tag(2)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -112,10 +114,10 @@ struct SettingsView: View {
                 .padding(.bottom, 6)
 
                 Group {
-                    if tab == 0 {
-                        GeneralSettingsTab()
-                    } else {
-                        HotkeySettingsTab()
+                    switch tab {
+                    case 0: GeneralSettingsTab()
+                    case 1: RetentionSettingsTab(store: store)
+                    default: HotkeySettingsTab()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -205,6 +207,77 @@ struct GeneralSettingsTab: View {
             Spacer()
         }
         .padding(22)
+    }
+}
+
+// MARK: - Retention (lifetime) tab
+
+struct RetentionSettingsTab: View {
+    @ObservedObject var store: ClipboardStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(Loc.s("Сколько хранить записи в каждой группе. Старые удаляются автоматически.",
+                       "How long to keep items in each group. Older ones are removed automatically."))
+                .font(.system(size: 11))
+                .foregroundColor(.white.opacity(0.5))
+                .fixedSize(horizontal: false, vertical: true)
+
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach(Array(store.groups.enumerated()), id: \.element.id) { index, group in
+                        retentionRow(group, index: index)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .padding(22)
+    }
+
+    @ViewBuilder
+    private func retentionRow(_ group: ClipboardGroup, index: Int) -> some View {
+        let color = GroupBarView.color(for: group, fallbackIndex: index)
+        HStack(spacing: 10) {
+            if let emoji = group.emoji, !emoji.isEmpty {
+                Text(emoji).font(.system(size: 15))
+                    .frame(width: 20)
+            } else if group.isDefault {
+                Image(systemName: "clock")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.7))
+                    .frame(width: 20)
+            } else {
+                Circle().fill(color).frame(width: 9, height: 9)
+                    .frame(width: 20)
+            }
+
+            Text(group.name)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.white)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            Picker("", selection: retentionBinding(for: group)) {
+                ForEach(RetentionPeriod.allCases) { period in
+                    Text(period.localizedName).tag(period)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 130)
+            .tint(color)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05)))
+    }
+
+    private func retentionBinding(for group: ClipboardGroup) -> Binding<RetentionPeriod> {
+        Binding(
+            get: { store.groups.first(where: { $0.id == group.id })?.retention ?? .oneWeek },
+            set: { store.setRetention($0, for: group.id) }
+        )
     }
 }
 

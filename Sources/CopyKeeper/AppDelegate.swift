@@ -233,7 +233,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
 
-        let view = SettingsView(onClose: { [weak self] in
+        let view = SettingsView(store: store, onClose: { [weak self] in
             self?.settingsWindow?.close()
         })
         let hosting = NSHostingView(rootView: view)

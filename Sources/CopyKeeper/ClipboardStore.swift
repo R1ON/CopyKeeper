@@ -36,6 +36,7 @@ class ClipboardStore: ObservableObject {
 
     private let totalCopiedKey = "com.copykeeper.totalCopied"
     private let firstLaunchKey = "com.copykeeper.firstLaunch"
+    private let retentionMigratedKey = "com.copykeeper.retentionDefaultMigrated.v2"
 
     var totalCopied: Int {
         UserDefaults.standard.integer(forKey: totalCopiedKey)
@@ -78,10 +79,27 @@ class ClipboardStore: ObservableObject {
             groups = data.groups
         }
         if !groups.contains(where: { $0.isDefault }) {
-            let defaultGroup = ClipboardGroup(name: "Все", isDefault: true)
+            let defaultGroup = ClipboardGroup(name: "Все", retention: .oneWeek, isDefault: true)
             groups.insert(defaultGroup, at: 0)
             saveData()
         }
+        migrateDefaultRetentionIfNeeded()
+    }
+
+    /// One-time retention default: the main ("Все") group keeps 1 week so
+    /// history doesn't pile up forever; user-made groups stay unlimited.
+    private func migrateDefaultRetentionIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: retentionMigratedKey) else { return }
+        var changed = false
+        for i in groups.indices {
+            let target: RetentionPeriod = groups[i].isDefault ? .oneWeek : .never
+            if groups[i].retention != target {
+                groups[i].retention = target
+                changed = true
+            }
+        }
+        UserDefaults.standard.set(true, forKey: retentionMigratedKey)
+        if changed { saveData() }
     }
 
     var allGroup: ClipboardGroup? {
@@ -213,6 +231,13 @@ class ClipboardStore: ObservableObject {
                                    colorIndex: colorIndex, emoji: emoji)
         groups.append(group)
         saveData()
+    }
+
+    func setRetention(_ period: RetentionPeriod, for groupID: UUID) {
+        guard let idx = groups.firstIndex(where: { $0.id == groupID }) else { return }
+        groups[idx].retention = period
+        saveData()
+        applyRetentionPolicies()
     }
 
     func deleteGroup(_ group: ClipboardGroup) {

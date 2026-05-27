@@ -24,7 +24,10 @@ final class ClipboardPanel: NSPanel {
 
         isFloatingPanel = true
         level = .floating
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        // Bound to the Space it's shown on (no .canJoinAllSpaces/.stationary):
+        // swiping to another desktop carries it away with the old Space, and it
+        // never appears on the new one. The activeSpace observer then tidies up.
+        collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .ignoresCycle]
         hidesOnDeactivate = false
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
@@ -122,6 +125,20 @@ final class ClipboardPanel: NSPanel {
         }
     }
 
+    /// Hide instantly with no slide animation. Used on Space switches so the
+    /// panel never flashes on the destination desktop (it lives on all Spaces).
+    func hideImmediately() {
+        guard isVisible else { return }
+        store.editingItemID = nil
+        store.renamingItemID = nil
+        store.groupEditorMode = nil
+        removeDismissObserver()
+        removeKeyMonitor()
+        isAnimating = false
+        orderOut(nil)
+        alphaValue = 1
+    }
+
     func toggle() {
         if isVisible && !isAnimating {
             hide()
@@ -148,7 +165,7 @@ final class ClipboardPanel: NSPanel {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.hide()
+            self?.hideImmediately()
         }
     }
 
