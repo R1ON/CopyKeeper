@@ -326,6 +326,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func cleanup() {
         monitor?.stop()
+        store.flushPendingSave()
         retentionTimer?.invalidate()
         retentionTimer = nil
         if let hotKeyRef {

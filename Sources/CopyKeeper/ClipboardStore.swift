@@ -35,6 +35,10 @@ class ClipboardStore: ObservableObject {
 
     var persistence = PersistenceManager()
 
+    // Coalesce rapid mutations into a single off-main write.
+    private var saveWorkItem: DispatchWorkItem?
+    private let saveQueue = DispatchQueue(label: "com.copykeeper.save", qos: .utility)
+
     private let totalCopiedKey = "com.copykeeper.totalCopied"
     private let firstLaunchKey = "com.copykeeper.firstLaunch"
     private let retentionMigratedKey = "com.copykeeper.retentionDefaultMigrated.v2"
@@ -295,42 +299,62 @@ class ClipboardStore: ObservableObject {
 
     func applyRetentionPolicies() {
         let now = Date()
+        let itemsByID = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        var changed = false
 
-        // Apply per-group retention
+        // Apply per-group retention (drops the item from the group, not history).
         for i in groups.indices {
             let group = groups[i]
             guard !group.isDefault, let interval = group.retention.timeInterval else { continue }
             let cutoff = now.addingTimeInterval(-interval)
-            let idsToRemove: [UUID] = group.itemIDs.compactMap { itemID in
-                guard let item = items.first(where: { $0.id == itemID }) else { return nil }
-                return (item.timestamp < cutoff && !item.isPinned) ? itemID : nil
+            let before = groups[i].itemIDs.count
+            groups[i].itemIDs.removeAll { itemID in
+                guard let item = itemsByID[itemID] else { return false }
+                return item.timestamp < cutoff && !item.isPinned
             }
-            groups[i].itemIDs.removeAll { idsToRemove.contains($0) }
+            if groups[i].itemIDs.count != before { changed = true }
         }
 
         // Apply the default ("Все") group retention to items that aren't
         // pinned into any subgroup. If it's set to "Никогда" — keep forever.
         let subgroupItemIDs = Set(groups.filter { !$0.isDefault }.flatMap { $0.itemIDs })
-        let defaultInterval = groups.first(where: { $0.isDefault })?.retention.timeInterval
-
-        let toRemove: [ClipboardItem]
-        if let interval = defaultInterval {
+        if let interval = groups.first(where: { $0.isDefault })?.retention.timeInterval {
             let cutoff = now.addingTimeInterval(-interval)
-            toRemove = items.filter { item in
+            let toRemove = items.filter { item in
                 item.timestamp < cutoff && !item.isPinned && !subgroupItemIDs.contains(item.id)
             }
-        } else {
-            toRemove = []
-        }
-        for item in toRemove {
-            removeItem(item)
+            if !toRemove.isEmpty {
+                let removeIDs = Set(toRemove.map { $0.id })
+                items.removeAll { removeIDs.contains($0.id) }
+                for i in groups.indices {
+                    groups[i].itemIDs.removeAll { removeIDs.contains($0) }
+                }
+                for item in toRemove { deleteFiles(of: item) }
+                changed = true
+            }
         }
 
-        saveData()
+        if changed { saveData() }
     }
 
+    /// Debounced persistence: snapshots state on the main thread after a short
+    /// quiet period, then encodes and writes on a background queue.
     private func saveData() {
-        let data = StoreData(items: items, groups: groups)
-        persistence.save(data)
+        saveWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            let snapshot = StoreData(items: self.items, groups: self.groups)
+            self.saveQueue.async { self.persistence.save(snapshot) }
+        }
+        saveWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+    }
+
+    /// Force any pending write to complete now (call on quit).
+    func flushPendingSave() {
+        saveWorkItem?.cancel()
+        saveWorkItem = nil
+        let snapshot = StoreData(items: items, groups: groups)
+        saveQueue.sync { self.persistence.save(snapshot) }
     }
 }
