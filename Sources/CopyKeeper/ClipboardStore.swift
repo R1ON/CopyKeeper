@@ -14,6 +14,7 @@ class ClipboardStore: ObservableObject {
     @Published var selectedGroupID: UUID?
     @Published var searchText: String = ""
     @Published var focusedItemID: UUID?
+    @Published var hoveredItemID: UUID?
     @Published var editingItemID: UUID?
     @Published var renamingItemID: UUID?
     @Published var groupEditorMode: GroupEditorMode?

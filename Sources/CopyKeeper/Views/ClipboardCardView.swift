@@ -60,7 +60,14 @@ struct ClipboardCardView: View {
         }
         .frame(width: cardWidth, height: cardHeight)
         .contentShape(Rectangle())
-        .onHover { isHovered = $0 }
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering {
+                store.hoveredItemID = item.id
+            } else if store.hoveredItemID == item.id {
+                store.hoveredItemID = nil
+            }
+        }
         .onAppear { loadImageIfNeeded() }
         .onChange(of: item.previewImagePath) { _ in loadImageIfNeeded() }
         .onChange(of: item.imagePath) { _ in loadImageIfNeeded() }

@@ -80,9 +80,14 @@ final class ClipboardPanel: NSPanel {
         setFrame(start, display: false)
         alphaValue = 0
         store.focusedItemID = nil
+        store.hoveredItemID = nil
         NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
         orderFrontRegardless()
+        // Don't let macOS auto-focus the first control (the search button):
+        // keep the container as first responder so nothing shows a focus ring
+        // until the user explicitly interacts.
+        makeFirstResponder(contentView)
         installKeyMonitor()
 
         isAnimating = true
@@ -263,17 +268,20 @@ final class ClipboardPanel: NSPanel {
             return true
 
         case 51, 117: // Delete / Forward delete
-            guard hasFocus else { return false }
-            let item = items[currentIndex]
+            // Prefer the hovered card so the mouse can drive deletion; fall
+            // back to the keyboard-focused one.
+            let target = store.hoveredItemID.flatMap { id in items.first { $0.id == id } }
+                ?? (hasFocus ? items[currentIndex] : nil)
+            guard let item = target else { return false }
             if AppSettings.shared.deleteWithoutConfirmation
-                || Confirm.destructive("Удалить карточку?",
-                                       info: "Это действие нельзя отменить.") {
+                || Confirm.destructive(Loc.s("Удалить карточку?", "Delete card?"),
+                                       info: Loc.s("Это действие нельзя отменить.",
+                                                   "This action cannot be undone.")) {
+                let wasFocused = item.id == store.focusedItemID
                 store.removeItem(item)
-                let next = store.displayedItems
-                if currentIndex < next.count {
-                    store.focusedItemID = next[currentIndex].id
-                } else {
-                    store.focusedItemID = next.last?.id
+                if wasFocused {
+                    let next = store.displayedItems
+                    store.focusedItemID = currentIndex < next.count ? next[currentIndex].id : next.last?.id
                 }
             }
             return true
