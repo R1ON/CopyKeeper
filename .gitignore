@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Build output
+.build/
+*.app/
+
+# IDE / editors
+.idea/
+.vscode/
+
+# Claude / agent config
+.claude/
