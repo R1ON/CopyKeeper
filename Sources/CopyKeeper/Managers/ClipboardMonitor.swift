@@ -131,20 +131,17 @@ class ClipboardMonitor {
         let bundleID = app.bundleIdentifier
         let name = app.localizedName
 
-        var iconData: Data?
-        var tintColor: CodableColor?
-
-        let iconImage = app.icon?.resized(to: NSSize(width: 32, height: 32))
-        if let icon = iconImage {
-            iconData = icon.tiffRepresentation.flatMap {
-                NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:])
-            }
-            if let dominant = icon.dominantColor() {
-                tintColor = CodableColor(dominant)
-            }
+        // Store the icon once per app (keyed by bundleID) instead of embedding
+        // a copy in every item.
+        if let bundleID,
+           let icon = app.icon?.resized(to: NSSize(width: 32, height: 32)),
+           let png = icon.tiffRepresentation.flatMap({
+               NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:])
+           }) {
+            IconStore.shared.register(bundleID: bundleID, data: png)
         }
 
-        return SourceApp(bundleID: bundleID, name: name, iconData: iconData, tintColor: tintColor)
+        return SourceApp(bundleID: bundleID, name: name)
     }
 
     private func detectType(text: String, sourceApp: SourceApp?) -> ContentType {

@@ -442,7 +442,9 @@ struct StatisticsView: View {
     private var topApps: [AppPoint] {
         let grouped = Dictionary(grouping: store.items) { $0.sourceApp?.name ?? Loc.s("Неизвестно", "Unknown") }
         return grouped.map { name, items -> AppPoint in
-            let icon = items.first?.sourceApp?.iconData.flatMap { NSImage(data: $0) }
+            let src = items.first?.sourceApp
+            let icon = IconStore.shared.nsImage(for: src?.bundleID)
+                ?? src?.iconData.flatMap { NSImage(data: $0) }
             return AppPoint(name: name, count: items.count, icon: icon)
         }
         // Stable order: by count desc, then name — so the list never reshuffles on re-render.

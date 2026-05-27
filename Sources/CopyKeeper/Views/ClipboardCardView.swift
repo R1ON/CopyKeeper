@@ -204,10 +204,16 @@ struct ClipboardCardView: View {
         )
     }
 
+    private var appIcon: NSImage? {
+        if let img = IconStore.shared.nsImage(for: item.sourceApp?.bundleID) { return img }
+        // Legacy items stored the icon inline before it was deduplicated.
+        if let data = item.sourceApp?.iconData { return NSImage(data: data) }
+        return nil
+    }
+
     @ViewBuilder
     private var iconView: some View {
-        if let iconData = item.sourceApp?.iconData,
-           let nsImage = NSImage(data: iconData) {
+        if let nsImage = appIcon {
             Image(nsImage: nsImage)
                 .resizable()
                 .scaledToFit()
@@ -262,7 +268,10 @@ struct ClipboardCardView: View {
     private func loadImageIfNeeded() {
         guard loadedImage == nil else { return }
         let path = item.type == .image ? item.imagePath : (item.type == .url ? item.previewImagePath : nil)
-        if let path { loadedImage = NSImage(contentsOfFile: path) }
+        guard let path else { return }
+        ThumbnailCache.shared.image(forPath: path, maxPixel: 480) { image in
+            loadedImage = image
+        }
     }
 
     @ViewBuilder

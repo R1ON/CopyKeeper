@@ -13,6 +13,7 @@ SOURCES=(
     "Sources/CopyKeeper/Models/ClipboardGroup.swift"
     "Sources/CopyKeeper/Extensions/Extensions.swift"
     "Sources/CopyKeeper/Managers/PersistenceManager.swift"
+    "Sources/CopyKeeper/Managers/MediaCache.swift"
     "Sources/CopyKeeper/ClipboardStore.swift"
     "Sources/CopyKeeper/Managers/ClipboardMonitor.swift"
     "Sources/CopyKeeper/AppDelegate.swift"

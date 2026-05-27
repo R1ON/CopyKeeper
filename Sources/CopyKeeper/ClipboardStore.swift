@@ -355,6 +355,6 @@ class ClipboardStore: ObservableObject {
         saveWorkItem?.cancel()
         saveWorkItem = nil
         let snapshot = StoreData(items: items, groups: groups)
-        saveQueue.sync { self.persistence.save(snapshot) }
+        saveQueue.sync { _ = self.persistence.save(snapshot) }
     }
 }
