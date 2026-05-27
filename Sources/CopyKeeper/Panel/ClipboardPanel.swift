@@ -197,12 +197,42 @@ final class ClipboardPanel: NSPanel {
         }
     }
 
+    // ANSI key codes for the top-row digits 1…9.
+    private static let digitKeyCodes: [UInt16: Int] = [
+        18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9
+    ]
+
+    /// Copy an item, dismiss the panel, then synthesize ⌘V into the app behind.
+    private func pasteItem(_ item: ClipboardItem) {
+        store.copyToClipboard(item)
+        hide()
+        guard let src = CGEventSource(stateID: .hidSystemState) else { return }
+        let vKey: CGKeyCode = 9
+        let down = CGEvent(keyboardEventSource: src, virtualKey: vKey, keyDown: true)
+        let up = CGEvent(keyboardEventSource: src, virtualKey: vKey, keyDown: false)
+        down?.flags = .maskCommand
+        up?.flags = .maskCommand
+        down?.post(tap: .cghidEventTap)
+        up?.post(tap: .cghidEventTap)
+    }
+
     private func handleKey(_ event: NSEvent) -> Bool {
-        // Don't hijack keys while editing text, managing a group, or typing in search.
+        // Don't hijack keys while editing text or managing a group.
         if store.editingItemID != nil || store.groupEditorMode != nil || store.renamingItemID != nil { return false }
-        if firstResponder is NSText { return false }
 
         let items = store.displayedItems
+
+        // ⌘1…⌘9 — paste the Nth visible card. Works even while the search
+        // field is focused, so it's a true quick-paste shortcut.
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           let digit = ClipboardPanel.digitKeyCodes[event.keyCode],
+           digit <= items.count {
+            pasteItem(items[digit - 1])
+            return true
+        }
+
+        if firstResponder is NSText { return false }
+
         guard !items.isEmpty else { return false }
 
         let focusedIndex = items.firstIndex { $0.id == store.focusedItemID }

@@ -125,9 +125,10 @@ struct ClipboardPanelView: View {
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
-                    ForEach(items) { item in
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         ClipboardCardView(item: item,
-                                          isFocused: item.id == store.focusedItemID)
+                                          isFocused: item.id == store.focusedItemID,
+                                          shortcutIndex: index < 9 ? index + 1 : nil)
                     }
                 }
                 .padding(.horizontal, 18)

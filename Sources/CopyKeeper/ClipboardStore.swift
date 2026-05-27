@@ -158,6 +158,18 @@ class ClipboardStore: ObservableObject {
 
     func addItem(_ item: ClipboardItem) {
         UserDefaults.standard.set(totalCopied + 1, forKey: totalCopiedKey)
+
+        // Deduplicate text-based content: if the same value is already stored,
+        // refresh and bump it to the top instead of adding a duplicate.
+        if let text = item.textContent,
+           let existingIdx = items.firstIndex(where: { $0.type == item.type && $0.textContent == text }) {
+            var existing = items.remove(at: existingIdx)
+            existing.timestamp = Date()
+            items.insert(existing, at: 0)
+            saveData()
+            return
+        }
+
         items.insert(item, at: 0)
         if items.count > 500 {
             let removed = items.removeLast()

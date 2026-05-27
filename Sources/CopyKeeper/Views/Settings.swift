@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Carbon
+import ServiceManagement
 
 // MARK: - Localization
 
@@ -72,6 +73,22 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published var launchAtLogin: Bool {
+        didSet { applyLaunchAtLogin() }
+    }
+
+    private func applyLaunchAtLogin() {
+        do {
+            if launchAtLogin {
+                if SMAppService.mainApp.status != .enabled { try SMAppService.mainApp.register() }
+            } else {
+                if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
+            }
+        } catch {
+            NSLog("CopyKeeper: launch-at-login update failed: \(error.localizedDescription)")
+        }
+    }
+
     @Published var language: AppLanguage {
         didSet {
             UserDefaults.standard.set(language.rawValue, forKey: Keys.language)
@@ -91,6 +108,7 @@ final class AppSettings: ObservableObject {
     private init() {
         deleteWithoutConfirmation = UserDefaults.standard.bool(forKey: Keys.deleteWithoutConfirmation)
         moveToFrontOnCopy = UserDefaults.standard.object(forKey: Keys.moveToFrontOnCopy) as? Bool ?? true
+        launchAtLogin = SMAppService.mainApp.status == .enabled
         let raw = UserDefaults.standard.string(forKey: Keys.language) ?? AppLanguage.auto.rawValue
         language = AppLanguage(rawValue: raw) ?? .auto
     }
@@ -183,36 +201,25 @@ struct GeneralSettingsTab: View {
     @ObservedObject var settings = AppSettings.shared
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 18) {
-            Toggle(isOn: $settings.deleteWithoutConfirmation) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(Loc.s("Удалять отдельные карточки без подтверждения",
-                               "Delete individual cards without confirmation"))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.white)
-                    Text(Loc.s("Групповые действия всегда требуют подтверждения.",
-                               "Group actions always require confirmation."))
-                        .font(.system(size: 11))
-                        .foregroundColor(.white.opacity(0.5))
-                }
-            }
-            .toggleStyle(.switch)
-            .tint(.orange)
+            toggleRow(isOn: $settings.deleteWithoutConfirmation,
+                      title: Loc.s("Удалять отдельные карточки без подтверждения",
+                                   "Delete individual cards without confirmation"),
+                      subtitle: Loc.s("Групповые действия всегда требуют подтверждения.",
+                                      "Group actions always require confirmation."))
 
-            Toggle(isOn: $settings.moveToFrontOnCopy) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(Loc.s("Перемещать карточку в начало при копировании",
-                               "Move card to the top when copied"))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.white)
-                    Text(Loc.s("Скопированная запись становится первой в списке.",
-                               "The copied item becomes the first in the list."))
-                        .font(.system(size: 11))
-                        .foregroundColor(.white.opacity(0.5))
-                }
-            }
-            .toggleStyle(.switch)
-            .tint(.orange)
+            toggleRow(isOn: $settings.moveToFrontOnCopy,
+                      title: Loc.s("Перемещать карточку в начало при копировании",
+                                   "Move card to the top when copied"),
+                      subtitle: Loc.s("Скопированная запись становится первой в списке.",
+                                      "The copied item becomes the first in the list."))
+
+            toggleRow(isOn: $settings.launchAtLogin,
+                      title: Loc.s("Запускать при входе в систему",
+                                   "Launch at login"),
+                      subtitle: Loc.s("Приложение будет открываться автоматически после входа.",
+                                      "The app starts automatically after you log in."))
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(Loc.s("Язык", "Language"))
@@ -227,9 +234,28 @@ struct GeneralSettingsTab: View {
                 .labelsHidden()
             }
 
-            Spacer()
         }
         .padding(22)
+        }
+    }
+
+    private func toggleRow(isOn: Binding<Bool>, title: String, subtitle: String) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.5))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .tint(.orange)
+        }
     }
 }
 

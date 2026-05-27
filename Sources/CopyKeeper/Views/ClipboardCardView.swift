@@ -4,6 +4,7 @@ import AppKit
 struct ClipboardCardView: View {
     let item: ClipboardItem
     var isFocused: Bool = false
+    var shortcutIndex: Int? = nil
     @EnvironmentObject var store: ClipboardStore
     @State private var isCopied = false
     @State private var isHovered = false
@@ -33,6 +34,18 @@ struct ClipboardCardView: View {
                 shadowY: highlighted ? 9 : 6,
                 shadowOpacity: highlighted ? 0.42 : 0.30
             )
+            .overlay(alignment: .bottomTrailing) {
+                if let n = shortcutIndex {
+                    Text("⌘\(n)")
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.9))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.black.opacity(0.4)))
+                        .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 0.5))
+                        .padding(7)
+                }
+            }
 
             if isCopied {
                 ZStack {
