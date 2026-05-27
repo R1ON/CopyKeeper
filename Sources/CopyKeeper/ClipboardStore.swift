@@ -14,7 +14,9 @@ class ClipboardStore: ObservableObject {
     @Published var selectedGroupID: UUID?
     @Published var searchText: String = ""
     @Published var focusedItemID: UUID?
-    @Published var hoveredItemID: UUID?
+    // Not @Published: only read in the keyboard handler, never in a view body.
+    // Publishing it would re-render the whole panel on every hover.
+    var hoveredItemID: UUID?
     @Published var editingItemID: UUID?
     @Published var renamingItemID: UUID?
     @Published var groupEditorMode: GroupEditorMode?
@@ -28,6 +30,9 @@ class ClipboardStore: ObservableObject {
         }
         return GroupBarView.palette[0]
     }
+
+    // Loaded once; playing a fresh NSSound from disk on every copy is wasteful.
+    private static let copySound = NSSound(named: "Frog")
 
     /// Set right before the app writes to the pasteboard itself, so the
     /// monitor skips capturing our own copy as a new (duplicate) item.
@@ -156,7 +161,7 @@ class ClipboardStore: ObservableObject {
                 pb.setData(data, forType: .tiff)
             }
         }
-        NSSound(named: "Frog")?.play()
+        ClipboardStore.copySound?.play()
 
         if AppSettings.shared.moveToFrontOnCopy {
             moveItemToFront(item)

@@ -5,6 +5,8 @@ class ClipboardMonitor {
     weak var store: ClipboardStore?
     private var lastChangeCount: Int
     private var timer: Timer?
+    // Heavy decoding/encoding runs here so the main-thread timer tick stays cheap.
+    private let processQueue = DispatchQueue(label: "com.copykeeper.monitor", qos: .userInitiated)
 
     init(store: ClipboardStore) {
         self.store = store
@@ -33,29 +35,38 @@ class ClipboardMonitor {
             return
         }
 
-        guard let item = createItem(from: pb) else { return }
-        DispatchQueue.main.async { [weak self] in
-            self?.store?.addItem(item)
+        // Snapshot the pasteboard + frontmost app on the main thread (both must
+        // be touched here), then hand the heavy work off to a background queue.
+        let sourceApp = getSourceApp()
+        let imageData = pb.data(forType: NSPasteboard.PasteboardType("public.png")) ?? pb.data(forType: .tiff)
+        let text = pb.string(forType: .string)
+        guard let persistence = store?.persistence else { return }
+
+        processQueue.async { [weak self] in
+            guard let self,
+                  let item = self.buildItem(imageData: imageData, text: text,
+                                            sourceApp: sourceApp, persistence: persistence)
+            else { return }
+            DispatchQueue.main.async { self.store?.addItem(item) }
         }
     }
 
-    private func createItem(from pb: NSPasteboard) -> ClipboardItem? {
-        let sourceApp = getSourceApp()
-
+    private func buildItem(imageData: Data?, text: String?,
+                           sourceApp: SourceApp?, persistence: PersistenceManager) -> ClipboardItem? {
         // Check for image data first
-        if let imageData = pb.data(forType: NSPasteboard.PasteboardType("public.png")) ?? pb.data(forType: .tiff) {
-            guard let store = store else { return nil }
+        if let imageData {
             let id = UUID()
             // Re-encode to compressed PNG (raw TIFF from the pasteboard is huge).
             let pngData = NSBitmapImageRep(data: imageData)?
                 .representation(using: .png, properties: [:]) ?? imageData
-            if let path = store.persistence.saveImage(pngData, id: id) {
+            if let path = persistence.saveImage(pngData, id: id) {
                 return ClipboardItem(id: id, type: .image, imagePath: path, sourceApp: sourceApp)
             }
+            return nil
         }
 
         // Check for string
-        if let text = pb.string(forType: .string), !text.isEmpty {
+        if let text = text, !text.isEmpty {
             let type = detectType(text: text, sourceApp: sourceApp)
             let item = ClipboardItem(type: type, textContent: text, sourceApp: sourceApp)
 
@@ -132,8 +143,9 @@ class ClipboardMonitor {
         let name = app.localizedName
 
         // Store the icon once per app (keyed by bundleID) instead of embedding
-        // a copy in every item.
-        if let bundleID,
+        // a copy in every item. Skip the resize + PNG re-encode entirely once
+        // we already have it — this runs on every clipboard change.
+        if let bundleID, !IconStore.shared.contains(bundleID: bundleID),
            let icon = app.icon?.resized(to: NSSize(width: 32, height: 32)),
            let png = icon.tiffRepresentation.flatMap({
                NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:])

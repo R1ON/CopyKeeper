@@ -26,6 +26,12 @@ final class IconStore {
         }
     }
 
+    /// Whether an icon is already stored for this bundle, so callers can skip
+    /// the expensive resize + PNG re-encode when it isn't needed.
+    func contains(bundleID: String) -> Bool {
+        data[bundleID] != nil
+    }
+
     /// Store the icon for a bundle once; subsequent copies from the same app are free.
     func register(bundleID: String, data iconData: Data) {
         guard self.data[bundleID] == nil else { return }
