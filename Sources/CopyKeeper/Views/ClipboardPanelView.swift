@@ -134,7 +134,7 @@ struct ClipboardPanelView: View {
         } else {
             let pinnedCount = items.prefix { $0.isPinned }.count
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
+                LazyHStack(spacing: 14) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         ClipboardCardView(item: item,
                                           isFocused: item.id == store.focusedItemID,
