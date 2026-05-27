@@ -117,14 +117,23 @@ class ClipboardStore: ObservableObject {
     }
 
     var displayedItems: [ClipboardItem] {
-        let base = filteredItems
+        var base = filteredItems
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !query.isEmpty else { return base }
-        return base.filter { item in
-            (item.textContent ?? "").lowercased().contains(query)
-            || (item.customTitle ?? "").lowercased().contains(query)
-            || (item.sourceApp?.name ?? "").lowercased().contains(query)
+        if !query.isEmpty {
+            base = base.filter { item in
+                (item.textContent ?? "").lowercased().contains(query)
+                || (item.customTitle ?? "").lowercased().contains(query)
+                || (item.sourceApp?.name ?? "").lowercased().contains(query)
+            }
         }
+        // Pinned cards float to the top, keeping their relative order.
+        return base.filter { $0.isPinned } + base.filter { !$0.isPinned }
+    }
+
+    func togglePin(_ item: ClipboardItem) {
+        guard let idx = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[idx].pinned = !items[idx].isPinned
+        saveData()
     }
 
     func copyToClipboard(_ item: ClipboardItem) {
@@ -293,7 +302,7 @@ class ClipboardStore: ObservableObject {
             let cutoff = now.addingTimeInterval(-interval)
             let idsToRemove: [UUID] = group.itemIDs.compactMap { itemID in
                 guard let item = items.first(where: { $0.id == itemID }) else { return nil }
-                return item.timestamp < cutoff ? itemID : nil
+                return (item.timestamp < cutoff && !item.isPinned) ? itemID : nil
             }
             groups[i].itemIDs.removeAll { idsToRemove.contains($0) }
         }
@@ -307,7 +316,7 @@ class ClipboardStore: ObservableObject {
         if let interval = defaultInterval {
             let cutoff = now.addingTimeInterval(-interval)
             toRemove = items.filter { item in
-                item.timestamp < cutoff && !subgroupItemIDs.contains(item.id)
+                item.timestamp < cutoff && !item.isPinned && !subgroupItemIDs.contains(item.id)
             }
         } else {
             toRemove = []

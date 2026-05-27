@@ -45,6 +45,10 @@ struct ClipboardItem: Codable, Identifiable {
     var groupIDs: [UUID]
     var customTitle: String?
     var previewImagePath: String?
+    // Optional so older persisted items (without this key) decode cleanly.
+    var pinned: Bool?
+
+    var isPinned: Bool { pinned ?? false }
 
     init(id: UUID = UUID(),
          timestamp: Date = Date(),
@@ -54,7 +58,8 @@ struct ClipboardItem: Codable, Identifiable {
          sourceApp: SourceApp? = nil,
          groupIDs: [UUID] = [],
          customTitle: String? = nil,
-         previewImagePath: String? = nil) {
+         previewImagePath: String? = nil,
+         pinned: Bool? = nil) {
         self.id = id
         self.timestamp = timestamp
         self.type = type
@@ -64,5 +69,6 @@ struct ClipboardItem: Codable, Identifiable {
         self.groupIDs = groupIDs
         self.customTitle = customTitle
         self.previewImagePath = previewImagePath
+        self.pinned = pinned
     }
 }

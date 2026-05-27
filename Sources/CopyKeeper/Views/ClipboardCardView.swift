@@ -90,6 +90,10 @@ struct ClipboardCardView: View {
             CardMenuItem(title: Loc.s("Скопировать", "Copy"), systemImage: "doc.on.doc",
                          keyEquivalent: "c", modifiers: .command) { performCopy() },
             .separator(),
+            CardMenuItem(title: item.isPinned ? Loc.s("Открепить", "Unpin")
+                                              : Loc.s("Закрепить", "Pin"),
+                         systemImage: item.isPinned ? "pin.slash" : "pin",
+                         keyEquivalent: "p", modifiers: .command) { store.togglePin(item) },
             CardMenuItem(title: Loc.s("Переименовать", "Rename"), systemImage: "pencil",
                          keyEquivalent: "r", modifiers: .command) { renameItem() }
         ]
@@ -164,9 +168,16 @@ struct ClipboardCardView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.white)
                     .lineLimit(1)
-                Text(timeAgo(item.timestamp))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.85))
+                HStack(spacing: 4) {
+                    if item.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    Text(timeAgo(item.timestamp))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.85))
+                }
             }
             Spacer(minLength: 0)
             iconView
