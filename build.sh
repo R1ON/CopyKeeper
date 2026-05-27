@@ -17,6 +17,7 @@ SOURCES=(
     "Sources/CopyKeeper/Managers/ClipboardMonitor.swift"
     "Sources/CopyKeeper/AppDelegate.swift"
     "Sources/CopyKeeper/Panel/ClipboardPanel.swift"
+    "Sources/CopyKeeper/Views/LiquidGlass.swift"
     "Sources/CopyKeeper/Views/ClipboardPanelView.swift"
     "Sources/CopyKeeper/Views/ClipboardCardView.swift"
     "Sources/CopyKeeper/Views/GroupBarView.swift"

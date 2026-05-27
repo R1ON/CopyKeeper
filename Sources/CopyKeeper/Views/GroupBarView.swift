@@ -46,7 +46,7 @@ struct GroupBarView: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.white.opacity(0.7))
                         .frame(width: 26, height: 26)
-                        .background(Circle().fill(Color.white.opacity(0.08)))
+                        .glassControl(Circle())
                 }
                 .buttonStyle(.plain)
             }
@@ -67,6 +67,12 @@ struct GroupBarView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(Capsule().fill(isDropTarget ? color.opacity(0.5) : fillColor))
+            .overlay(
+                Capsule()
+                    .strokeBorder(glassRim(isSelected ? 1.0 : 0.5), lineWidth: 1)
+                    .blendMode(.plusLighter)
+                    .opacity(isSelected || isHovered ? 1 : 0)
+            )
             .overlay(Capsule().stroke(color, lineWidth: isDropTarget ? 2 : 0))
             .foregroundColor(isSelected ? .white : .white.opacity(0.7))
             .contentShape(Rectangle())

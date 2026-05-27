@@ -5,6 +5,7 @@ import Combine
 final class ClipboardPanel: NSPanel {
     private var isAnimating = false
     private var resignObserver: NSObjectProtocol?
+    private var spaceObserver: NSObjectProtocol?
     private var keyMonitor: Any?
     private var editingCancellable: AnyCancellable?
     private let store: ClipboardStore
@@ -140,12 +141,25 @@ final class ClipboardPanel: NSPanel {
         ) { [weak self] _ in
             self?.hide()
         }
+        // Dismiss when the user switches Spaces / desktops so the panel
+        // doesn't linger over another workspace.
+        spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.hide()
+        }
     }
 
     private func removeDismissObserver() {
         if let resignObserver {
             NotificationCenter.default.removeObserver(resignObserver)
             self.resignObserver = nil
+        }
+        if let spaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(spaceObserver)
+            self.spaceObserver = nil
         }
     }
 

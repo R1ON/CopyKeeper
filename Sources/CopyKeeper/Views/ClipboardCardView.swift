@@ -13,7 +13,7 @@ struct ClipboardCardView: View {
 
     private let cardWidth: CGFloat = 206
     private let cardHeight: CGFloat = 236
-    private let radius: CGFloat = 16
+    private let radius: CGFloat = 18
 
     private var highlight: Color { store.activeColor }
 
@@ -24,17 +24,19 @@ struct ClipboardCardView: View {
                 bodyView
             }
             .frame(width: cardWidth, height: cardHeight)
-            .background(Color.white.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: radius))
-            .overlay(
-                RoundedRectangle(cornerRadius: radius)
-                    .stroke(highlighted ? highlight : Color.white.opacity(0.12),
-                            lineWidth: highlighted ? 1.5 : 1)
+            .liquidGlassPlate(
+                RoundedRectangle(cornerRadius: radius, style: .continuous),
+                rimStrength: highlighted ? 1.3 : 0.9,
+                stroke: highlighted ? highlight : nil,
+                strokeWidth: 1.5,
+                shadowRadius: highlighted ? 20 : 13,
+                shadowY: highlighted ? 9 : 6,
+                shadowOpacity: highlighted ? 0.42 : 0.30
             )
 
             if isCopied {
                 ZStack {
-                    RoundedRectangle(cornerRadius: radius)
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .fill(Color.black.opacity(0.55))
                     Label(Loc.s("Скопировано", "Copied"), systemImage: "checkmark.circle.fill")
                         .font(.system(size: 13, weight: .semibold))
@@ -160,8 +162,14 @@ struct ClipboardCardView: View {
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            LinearGradient(colors: [headerColor, headerColor.opacity(0.78)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            ZStack {
+                LinearGradient(colors: [headerColor, headerColor.opacity(0.78)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                // glassy sheen across the top of the accent band
+                LinearGradient(colors: [Color.white.opacity(0.14), .clear],
+                               startPoint: .top, endPoint: .bottom)
+                    .blendMode(.plusLighter)
+            }
         )
     }
 
@@ -308,8 +316,8 @@ struct ClipboardCardView: View {
         if item.type != .image && item.type != .url {
             HStack {
                 Text(charCountText)
-                    .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.4))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white.opacity(0.85))
                 Spacer()
             }
         }
@@ -427,11 +435,11 @@ struct ClipboardCardView: View {
 
     private var headerColor: Color {
         switch item.type {
-        case .text:  return Color(red: 0.98, green: 0.62, blue: 0.20)
-        case .url:   return Color(red: 0.27, green: 0.55, blue: 1.0)
-        case .code:  return Color(red: 0.55, green: 0.45, blue: 0.95)
-        case .image: return Color(red: 1.0, green: 0.38, blue: 0.42)
-        case .color: return Color(red: 1.0, green: 0.42, blue: 0.68)
+        case .text:  return Color(red: 0.82, green: 0.48, blue: 0.12)
+        case .url:   return Color(red: 0.18, green: 0.42, blue: 0.88)
+        case .code:  return Color(red: 0.44, green: 0.35, blue: 0.82)
+        case .image: return Color(red: 0.85, green: 0.26, blue: 0.32)
+        case .color: return Color(red: 0.86, green: 0.30, blue: 0.56)
         }
     }
 

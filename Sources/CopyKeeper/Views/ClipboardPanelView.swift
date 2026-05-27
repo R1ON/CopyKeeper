@@ -57,11 +57,21 @@ struct ClipboardPanelView: View {
         .clipShape(RoundedCorner(radius: corner, corners: [.topLeft, .topRight]))
         .overlay(
             RoundedCorner(radius: corner, corners: [.topLeft, .topRight])
-                .stroke(
-                    LinearGradient(colors: [Color.white.opacity(0.28), Color.white.opacity(0.06)],
-                                   startPoint: .top, endPoint: .bottom),
-                    lineWidth: 1
+                .stroke(glassRim(1.0), lineWidth: 1)
+                .blendMode(.plusLighter)
+        )
+        // crisp bright lensing line along the very top edge
+        .overlay(
+            RoundedCorner(radius: corner, corners: [.topLeft, .topRight])
+                .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                .blur(radius: 0.5)
+                .mask(
+                    LinearGradient(colors: [.white, .clear],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 60)
+                        .frame(maxHeight: .infinity, alignment: .top)
                 )
+                .blendMode(.plusLighter)
         )
     }
 
@@ -70,22 +80,24 @@ struct ClipboardPanelView: View {
     private var background: some View {
         ZStack {
             VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
-            Color.black.opacity(0.38)
 
-            // warm glow rising from the bottom
+            // light neutral frost — kept translucent, just enough for legibility
+            Color.black.opacity(0.18)
+
+            // top-down sheen: bright at the rim, clear in the middle
             LinearGradient(
-                colors: [Color(red: 1.0, green: 0.45, blue: 0.15).opacity(0.30),
-                         Color(red: 0.95, green: 0.3, blue: 0.45).opacity(0.10),
-                         .clear],
-                startPoint: .bottom, endPoint: .top
+                colors: [Color.white.opacity(0.12), .clear, Color.black.opacity(0.06)],
+                startPoint: .top, endPoint: .bottom
             )
+
+            // faint cool ambient light pooling at the lower corners
             RadialGradient(
-                colors: [Color(red: 1.0, green: 0.55, blue: 0.2).opacity(0.28), .clear],
-                center: .init(x: 0.18, y: 1.0),
+                colors: [Color.white.opacity(0.10), .clear],
+                center: .init(x: 0.15, y: 1.0),
                 startRadius: 0, endRadius: 520
             )
             RadialGradient(
-                colors: [Color(red: 0.7, green: 0.35, blue: 0.95).opacity(0.18), .clear],
+                colors: [Color(red: 0.6, green: 0.78, blue: 1.0).opacity(0.10), .clear],
                 center: .init(x: 0.9, y: 1.0),
                 startRadius: 0, endRadius: 480
             )
@@ -183,7 +195,7 @@ struct TopBarView: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 30)
-        .background(Capsule().fill(Color.white.opacity(0.08)))
+        .glassControl(Capsule())
         .frame(maxWidth: 280)
     }
 
@@ -212,12 +224,11 @@ struct TopBarView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white.opacity(0.7))
                 .frame(width: 30, height: 30)
-                .background(Circle().fill(Color.white.opacity(0.08)))
+                .glassControl(Circle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .frame(width: 30)
-        .hoverHighlight()
     }
 
     private var closeButton: some View {
@@ -232,7 +243,7 @@ struct TopBarView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white.opacity(0.7))
                 .frame(width: 30, height: 30)
-                .background(Circle().fill(Color.white.opacity(0.08)))
+                .glassControl(Circle())
         }
         .buttonStyle(.plain).hoverHighlight()
     }
@@ -300,17 +311,7 @@ struct EditTextOverlay: View {
             }
             .padding(16)
             .frame(width: 560)
-            .background(
-                ZStack {
-                    VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
-                    Color.black.opacity(0.45)
-                }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
-            )
+            .liquidGlassSurface(cornerRadius: 18)
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { editorFocused = true }
@@ -457,17 +458,7 @@ struct GroupEditorOverlay: View {
             }
             .padding(18)
             .frame(width: 380)
-            .background(
-                ZStack {
-                    VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
-                    Color.black.opacity(0.45)
-                }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
-            )
+            .liquidGlassSurface(cornerRadius: 18)
 
             if showEmojiGrid {
                 emojiPickerOverlay
@@ -539,14 +530,7 @@ struct GroupEditorOverlay: View {
             }
             .padding(16)
             .frame(width: 560, height: 300)
-            .background(
-                ZStack {
-                    VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
-                    Color.black.opacity(0.5)
-                }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.18), lineWidth: 1))
+            .liquidGlassSurface(cornerRadius: 18)
         }
     }
 
@@ -655,17 +639,7 @@ struct RenameCardOverlay: View {
             }
             .padding(18)
             .frame(width: 380)
-            .background(
-                ZStack {
-                    VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
-                    Color.black.opacity(0.45)
-                }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
-            )
+            .liquidGlassSurface(cornerRadius: 18)
         }
         .onAppear {
             name = item.customTitle ?? defaultTitle
