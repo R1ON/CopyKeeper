@@ -26,7 +26,9 @@ private final class ActionBox {
 // MARK: - Right-click styled menu
 
 struct CardContextMenu: NSViewRepresentable {
-    let items: [CardMenuItem]
+    // Built lazily on right-click so it always reflects current store state
+    // (e.g. newly created groups) without forcing the card to re-render.
+    let items: () -> [CardMenuItem]
 
     func makeCoordinator() -> Coordinator { Coordinator(items: items) }
 
@@ -42,15 +44,15 @@ struct CardContextMenu: NSViewRepresentable {
     }
 
     final class Coordinator: NSObject {
-        var items: [CardMenuItem]
-        init(items: [CardMenuItem]) { self.items = items }
+        var items: () -> [CardMenuItem]
+        init(items: @escaping () -> [CardMenuItem]) { self.items = items }
 
         @objc func fire(_ sender: NSMenuItem) {
             (sender.representedObject as? ActionBox)?.action()
         }
 
         func buildMenu() -> NSMenu {
-            let menu = build(from: items)
+            let menu = build(from: items())
             menu.appearance = NSAppearance(named: .vibrantLight)
             return menu
         }

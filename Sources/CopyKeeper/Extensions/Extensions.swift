@@ -5,7 +5,7 @@ import CoreImage.CIFilterBuiltins
 
 // MARK: - CodableColor
 
-struct CodableColor: Codable {
+struct CodableColor: Codable, Equatable {
     var r: Double
     var g: Double
     var b: Double

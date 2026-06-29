@@ -13,29 +13,34 @@ enum ContentType: String, Codable, CaseIterable {
 
 // MARK: - SourceApp
 
-struct SourceApp: Codable {
+struct SourceApp: Codable, Equatable {
     var bundleID: String?
     var name: String?
     var iconData: Data?
     var tintColor: CodableColor?
+    // Legacy: older items embedded favicon bytes here. New items reference a
+    // deduplicated favicon by host via `faviconHost` + FaviconStore instead.
     var faviconData: Data?
+    var faviconHost: String?
 
     init(bundleID: String? = nil,
          name: String? = nil,
          iconData: Data? = nil,
          tintColor: CodableColor? = nil,
-         faviconData: Data? = nil) {
+         faviconData: Data? = nil,
+         faviconHost: String? = nil) {
         self.bundleID = bundleID
         self.name = name
         self.iconData = iconData
         self.tintColor = tintColor
         self.faviconData = faviconData
+        self.faviconHost = faviconHost
     }
 }
 
 // MARK: - ClipboardItem
 
-struct ClipboardItem: Codable, Identifiable {
+struct ClipboardItem: Codable, Identifiable, Equatable {
     var id: UUID
     var timestamp: Date
     var type: ContentType
@@ -47,6 +52,8 @@ struct ClipboardItem: Codable, Identifiable {
     var previewImagePath: String?
     // Optional so older persisted items (without this key) decode cleanly.
     var pinned: Bool?
+    // Content hash of the stored image, used to dedup identical screenshots.
+    var imageHash: String?
 
     var isPinned: Bool { pinned ?? false }
 
@@ -59,7 +66,8 @@ struct ClipboardItem: Codable, Identifiable {
          groupIDs: [UUID] = [],
          customTitle: String? = nil,
          previewImagePath: String? = nil,
-         pinned: Bool? = nil) {
+         pinned: Bool? = nil,
+         imageHash: String? = nil) {
         self.id = id
         self.timestamp = timestamp
         self.type = type
@@ -70,5 +78,6 @@ struct ClipboardItem: Codable, Identifiable {
         self.customTitle = customTitle
         self.previewImagePath = previewImagePath
         self.pinned = pinned
+        self.imageHash = imageHash
     }
 }

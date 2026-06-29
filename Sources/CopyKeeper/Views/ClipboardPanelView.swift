@@ -133,12 +133,16 @@ struct ClipboardPanelView: View {
             Spacer()
         } else {
             let pinnedCount = items.prefix { $0.isPinned }.count
+            let activeColor = store.activeColor
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 14) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         ClipboardCardView(item: item,
+                                          store: store,
+                                          activeColor: activeColor,
                                           isFocused: item.id == store.focusedItemID,
                                           shortcutIndex: index < 9 ? index + 1 : nil)
+                            .equatable()
 
                         if index == pinnedCount - 1 && pinnedCount < items.count {
                             RoundedRectangle(cornerRadius: 0.5)

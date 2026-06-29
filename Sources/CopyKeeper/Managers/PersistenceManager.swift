@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.copykeeper", category: "persistence")
 
 // MARK: - StoreData
 
@@ -32,7 +35,7 @@ class PersistenceManager {
             try encoded.write(to: dataFileURL, options: .atomic)
             return true
         } catch {
-            print("PersistenceManager save error: \(error)")
+            log.error("save error: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }
@@ -45,7 +48,7 @@ class PersistenceManager {
             let data = try Data(contentsOf: dataFileURL)
             return try decoder.decode(StoreData.self, from: data)
         } catch {
-            print("PersistenceManager load error: \(error)")
+            log.error("load error: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -56,7 +59,7 @@ class PersistenceManager {
             try data.write(to: url, options: .atomic)
             return url.path
         } catch {
-            print("PersistenceManager saveImage error: \(error)")
+            log.error("saveImage error: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }

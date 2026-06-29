@@ -9,10 +9,10 @@ enum GroupEditorMode: Equatable {
 }
 
 class ClipboardStore: ObservableObject {
-    @Published var items: [ClipboardItem] = []
-    @Published var groups: [ClipboardGroup] = []
-    @Published var selectedGroupID: UUID?
-    @Published var searchText: String = ""
+    @Published var items: [ClipboardItem] = [] { didSet { displayedCache = nil } }
+    @Published var groups: [ClipboardGroup] = [] { didSet { displayedCache = nil } }
+    @Published var selectedGroupID: UUID? { didSet { displayedCache = nil } }
+    @Published var searchText: String = "" { didSet { displayedCache = nil } }
     @Published var focusedItemID: UUID?
     // Not @Published: only read in the keyboard handler, never in a view body.
     // Publishing it would re-render the whole panel on every hover.
@@ -126,7 +126,12 @@ class ClipboardStore: ObservableObject {
         return items.filter { ids.contains($0.id) }
     }
 
+    // Memoised result of `displayedItems`; invalidated when any input
+    // (items / groups / selection / search) changes via the `didSet`s above.
+    private var displayedCache: [ClipboardItem]?
+
     var displayedItems: [ClipboardItem] {
+        if let cached = displayedCache { return cached }
         var base = filteredItems
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         if !query.isEmpty {
@@ -137,7 +142,9 @@ class ClipboardStore: ObservableObject {
             }
         }
         // Pinned cards float to the top, keeping their relative order.
-        return base.filter { $0.isPinned } + base.filter { !$0.isPinned }
+        let result = base.filter { $0.isPinned } + base.filter { !$0.isPinned }
+        displayedCache = result
+        return result
     }
 
     func togglePin(_ item: ClipboardItem) {
@@ -185,6 +192,18 @@ class ClipboardStore: ObservableObject {
             var existing = items.remove(at: existingIdx)
             existing.timestamp = Date()
             items.insert(existing, at: 0)
+            saveData()
+            return
+        }
+
+        // Deduplicate identical images by content hash; drop the freshly saved
+        // duplicate file and bump the existing entry instead.
+        if item.type == .image, let hash = item.imageHash,
+           let existingIdx = items.firstIndex(where: { $0.type == .image && $0.imageHash == hash }) {
+            var existing = items.remove(at: existingIdx)
+            existing.timestamp = Date()
+            items.insert(existing, at: 0)
+            deleteFiles(of: item)
             saveData()
             return
         }

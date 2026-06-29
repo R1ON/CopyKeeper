@@ -61,6 +61,55 @@ final class IconStore {
     }
 }
 
+// MARK: - FaviconStore
+//
+// Favicons are per-host, so the same site copied many times used to embed an
+// identical favicon blob in every item (bloating data.json). Store one PNG per
+// host here in a side file; items just reference the host via `faviconHost`.
+
+final class FaviconStore {
+    static let shared = FaviconStore()
+
+    private var data: [String: Data] = [:]
+    private let cache = NSCache<NSString, NSImage>()
+    private let fileURL: URL
+    private let saveQueue = DispatchQueue(label: "com.copykeeper.faviconstore", qos: .utility)
+
+    private init() {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        fileURL = appSupport.appendingPathComponent("CopyKeeper/favicons.json")
+        if let raw = try? Data(contentsOf: fileURL),
+           let decoded = try? JSONDecoder().decode([String: Data].self, from: raw) {
+            data = decoded
+        }
+    }
+
+    func contains(host: String) -> Bool {
+        data[host] != nil
+    }
+
+    func register(host: String, data iconData: Data) {
+        guard self.data[host] == nil else { return }
+        self.data[host] = iconData
+        let snapshot = data
+        saveQueue.async { [weak self] in
+            guard let self = self else { return }
+            if let encoded = try? JSONEncoder().encode(snapshot) {
+                try? encoded.write(to: self.fileURL, options: .atomic)
+            }
+        }
+    }
+
+    func nsImage(for host: String?) -> NSImage? {
+        guard let host else { return nil }
+        let key = host as NSString
+        if let cached = cache.object(forKey: key) { return cached }
+        guard let raw = data[host], let image = NSImage(data: raw) else { return nil }
+        cache.setObject(image, forKey: key)
+        return image
+    }
+}
+
 // MARK: - ThumbnailCache
 //
 // Image/link cards only need a card-sized preview, but the originals can be

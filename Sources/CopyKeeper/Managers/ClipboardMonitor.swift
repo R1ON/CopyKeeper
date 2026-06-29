@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import CryptoKit
 
 class ClipboardMonitor {
     weak var store: ClipboardStore?
@@ -59,8 +60,10 @@ class ClipboardMonitor {
             // Re-encode to compressed PNG (raw TIFF from the pasteboard is huge).
             let pngData = NSBitmapImageRep(data: imageData)?
                 .representation(using: .png, properties: [:]) ?? imageData
+            let hash = Self.sha256Hex(pngData)
             if let path = persistence.saveImage(pngData, id: id) {
-                return ClipboardItem(id: id, type: .image, imagePath: path, sourceApp: sourceApp)
+                return ClipboardItem(id: id, type: .image, imagePath: path,
+                                     sourceApp: sourceApp, imageHash: hash)
             }
             return nil
         }
@@ -68,19 +71,28 @@ class ClipboardMonitor {
         // Check for string
         if let text = text, !text.isEmpty {
             let type = detectType(text: text, sourceApp: sourceApp)
-            let item = ClipboardItem(type: type, textContent: text, sourceApp: sourceApp)
+            var item = ClipboardItem(type: type, textContent: text, sourceApp: sourceApp)
 
             // For URLs, async fetch favicon + Open Graph preview image
-            if type == .url, let url = URL(string: text), let host = url.host {
+            if type == .url,
+               let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
+               let host = url.host {
                 let itemID = item.id
-                let faviconURLString = "https://www.google.com/s2/favicons?domain=\(host)&sz=64"
-                if let faviconURL = URL(string: faviconURLString) {
+                if FaviconStore.shared.contains(host: host) {
+                    // Already cached — reference it immediately.
+                    if item.sourceApp == nil { item.sourceApp = SourceApp() }
+                    item.sourceApp?.faviconHost = host
+                } else if let faviconURL = URL(string: "https://www.google.com/s2/favicons?domain=\(host)&sz=64") {
                     URLSession.shared.dataTask(with: faviconURL) { [weak self] data, _, _ in
-                        guard let data = data, let self = self else { return }
+                        guard let data = data, NSImage(data: data) != nil,
+                              let self = self else { return }
+                        FaviconStore.shared.register(host: host, data: data)
                         DispatchQueue.main.async {
-                            if let idx = self.store?.items.firstIndex(where: { $0.id == itemID }) {
-                                self.store?.items[idx].sourceApp?.faviconData = data
-                            }
+                            guard let store = self.store,
+                                  let idx = store.items.firstIndex(where: { $0.id == itemID }) else { return }
+                            if store.items[idx].sourceApp == nil { store.items[idx].sourceApp = SourceApp() }
+                            store.items[idx].sourceApp?.faviconHost = host
+                            store.persist()
                         }
                     }.resume()
                 }
@@ -91,6 +103,10 @@ class ClipboardMonitor {
         }
 
         return nil
+    }
+
+    private static func sha256Hex(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     private func fetchPreviewImage(for url: URL, itemID: UUID) {
@@ -162,8 +178,15 @@ class ClipboardMonitor {
             return .color
         }
 
-        // URL detection
-        if let url = URL(string: text), url.scheme != nil, url.host != nil {
+        // URL detection: must be a single whitespace-free http(s) URL, so a
+        // sentence that merely contains a link isn't misclassified.
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty,
+           !trimmed.unicodeScalars.contains(where: { CharacterSet.whitespacesAndNewlines.contains($0) }),
+           let url = URL(string: trimmed),
+           let scheme = url.scheme?.lowercased(),
+           scheme == "http" || scheme == "https",
+           url.host != nil {
             return .url
         }
 

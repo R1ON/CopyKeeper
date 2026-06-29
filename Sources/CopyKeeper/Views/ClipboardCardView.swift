@@ -1,14 +1,25 @@
 import SwiftUI
 import AppKit
 
-struct ClipboardCardView: View {
+struct ClipboardCardView: View, Equatable {
     let item: ClipboardItem
+    // Plain reference (not @EnvironmentObject) so the card doesn't re-render on
+    // every store mutation; combined with Equatable below it only redraws when
+    // its own inputs change.
+    let store: ClipboardStore
+    var activeColor: Color = .accentColor
     var isFocused: Bool = false
     var shortcutIndex: Int? = nil
-    @EnvironmentObject var store: ClipboardStore
     @State private var isCopied = false
     @State private var isHovered = false
     @State private var loadedImage: NSImage?
+
+    static func == (lhs: ClipboardCardView, rhs: ClipboardCardView) -> Bool {
+        lhs.item == rhs.item
+            && lhs.isFocused == rhs.isFocused
+            && lhs.shortcutIndex == rhs.shortcutIndex
+            && lhs.activeColor == rhs.activeColor
+    }
 
     private var highlighted: Bool { isHovered || isFocused }
 
@@ -16,7 +27,7 @@ struct ClipboardCardView: View {
     private let cardHeight: CGFloat = 236
     private let radius: CGFloat = 18
 
-    private var highlight: Color { store.activeColor }
+    private var highlight: Color { activeColor }
 
     var body: some View {
         ZStack {
@@ -85,7 +96,7 @@ struct ClipboardCardView: View {
             store.focusedItemID = item.id
             performCopy()
         }
-        .overlay(CardContextMenu(items: menuItems))
+        .overlay(CardContextMenu(items: { menuItems }))
     }
 
     // MARK: - Context menu
@@ -211,6 +222,14 @@ struct ClipboardCardView: View {
         return nil
     }
 
+    private var favicon: NSImage? {
+        if let host = item.sourceApp?.faviconHost,
+           let img = FaviconStore.shared.nsImage(for: host) { return img }
+        // Legacy items stored the favicon bytes inline before dedup.
+        if let data = item.sourceApp?.faviconData { return NSImage(data: data) }
+        return nil
+    }
+
     @ViewBuilder
     private var iconView: some View {
         if let nsImage = appIcon {
@@ -312,8 +331,7 @@ struct ClipboardCardView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
-                    if let faviconData = item.sourceApp?.faviconData,
-                       let nsImg = NSImage(data: faviconData) {
+                    if let nsImg = favicon {
                         Image(nsImage: nsImg)
                             .resizable()
                             .frame(width: 15, height: 15)

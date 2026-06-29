@@ -1,6 +1,9 @@
 import AppKit
 import SwiftUI
 import Carbon
+import os
+
+private let log = Logger(subsystem: "com.copykeeper", category: "app")
 
 // MARK: - Notification Name Extension
 
@@ -28,7 +31,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var suppressHotkey = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        print("CopyKeeper: application did finish launching")
         NSApp.setActivationPolicy(.accessory)
         panel = ClipboardPanel(store: store)
         setupStatusBar()
@@ -160,9 +162,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         )
 
         if installStatus != noErr {
-            print("CopyKeeper: failed to install hotkey event handler, status: \(installStatus)")
-        } else {
-            print("CopyKeeper: hotkey event handler installed")
+            log.error("failed to install hotkey event handler, status: \(installStatus)")
         }
 
         registerCarbonHotkey()
@@ -196,9 +196,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                          currentHotkey.carbonModifiers,
                                          hkID, GetApplicationEventTarget(), 0, &hotKeyRef)
         if status != noErr {
-            print("CopyKeeper: failed to register hotkey \(currentHotkey.displayString), status: \(status)")
-        } else {
-            print("CopyKeeper: registered hotkey \(currentHotkey.displayString)")
+            log.error("failed to register hotkey \(self.currentHotkey.displayString, privacy: .public), status: \(status)")
         }
     }
 
